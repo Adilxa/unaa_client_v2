@@ -21,28 +21,66 @@ const HomeScreen = () => {
     // Connection status
     const [connected, setConnected] = useState(false);
 
+    // Error state
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(true);
+
     // Progress tracking
     const [progress, setProgress] = useState(0);
     const [remainingTime, setRemainingTime] = useState(60);
 
     useEffect(() => {
-        // Parse the websocket ID from the URL
+        // Parse the websocket ID from the URL (both query params and hash)
+        let websocketId = null;
+
+        // Try to get from query params
         const urlParams = new URLSearchParams(window.location.search);
-        const websocketId = urlParams.get('id');
+        websocketId = urlParams.get('id');
+
+        // If not found, try to get from hash
+        if (!websocketId && window.location.hash && window.location.hash.length > 1) {
+            websocketId = window.location.hash.substring(1);
+        }
 
         if (!websocketId) {
             console.error('No WebSocket ID found in URL');
+            setError('Не удалось найти ID заказа в URL. Пожалуйста, отсканируйте QR-код снова.');
+            setLoading(false);
             return;
         }
 
+        console.log('WebSocket ID found:', websocketId);
+
         // Create WebSocket connection using the ID from URL
         const wsUrl = `ws://84.54.12.243/ws/order/${websocketId}/`;
-        const socket = new WebSocket(wsUrl);
+        console.log('Connecting to WebSocket:', wsUrl);
+
+        let socket;
+        try {
+            socket = new WebSocket(wsUrl);
+        } catch (err) {
+            console.error('Error creating WebSocket:', err);
+            setError('Не удалось подключиться к серверу. Пожалуйста, проверьте соединение и попробуйте снова.');
+            setLoading(false);
+            return;
+        }
+
+        // Add connection timeout
+        const connectionTimeout = setTimeout(() => {
+            if (!connected) {
+                console.error('WebSocket connection timeout');
+                setError('Превышено время ожидания подключения. Пожалуйста, попробуйте позже.');
+                setLoading(false);
+                socket.close();
+            }
+        }, 10000); // 10 seconds timeout
 
         // Handle connection open
         socket.onopen = () => {
             console.log('WebSocket connection established');
+            clearTimeout(connectionTimeout);
             setConnected(true);
+            setLoading(false);
         };
 
         // Handle messages
@@ -83,16 +121,23 @@ const HomeScreen = () => {
         socket.onerror = (error) => {
             console.error('WebSocket error:', error);
             setConnected(false);
+            setError('Произошла ошибка при подключении к серверу. Пожалуйста, попробуйте позже.');
+            setLoading(false);
         };
 
         // Handle connection close
         socket.onclose = () => {
             console.log('WebSocket connection closed');
             setConnected(false);
+            if (loading) {
+                setError('Соединение закрыто. Не удалось получить данные заказа.');
+                setLoading(false);
+            }
         };
 
         // Cleanup on component unmount
         return () => {
+            clearTimeout(connectionTimeout);
             socket.close();
         };
     }, []);
@@ -100,7 +145,7 @@ const HomeScreen = () => {
     // Format phone number
     const formatPhone = (phone) => {
         if (!phone) return "";
-        return `+${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6, 9)} ${phone.slice(9)}`;
+        return `+${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(9)}`;
     };
 
     // Get package name
@@ -137,6 +182,42 @@ const HomeScreen = () => {
             default: return 'bg-gray-100 text-gray-700';
         }
     };
+
+    // If loading or error, show appropriate screen
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
+                <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
+                    <div className="my-8">
+                        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-gray-600">Загрузка данных заказа...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
+                <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
+                    <div className="my-8">
+                        <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <span className="text-red-500 text-2xl">!</span>
+                        </div>
+                        <h3 className="text-xl font-bold mb-2">Ошибка</h3>
+                        <p className="text-gray-600 mb-4">{error}</p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-full"
+                        >
+                            Повторить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
