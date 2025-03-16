@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/router'; // для Pages Router
 // или для App Router:
 // import { useParams } from 'next/navigation';
 
-import HomeScreen from '@/components/HomeScreen'; // Путь может отличаться
+import HomeScreen from '../../../screens/HomeScreen'; // Путь может отличаться
 
 const TrackPage = () => {
     // Для Pages Router (pages/track/[id].js)
