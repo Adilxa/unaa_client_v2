@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
 
-const HomeScreen = () => {
-    // State for storing WebSocket data
+// Добавлен необязательный prop websocketId
+const HomeScreen = ({ websocketId: propWebsocketId }) => {
+    // State для хранения данных WebSocket
     const [orderData, setOrderData] = useState({
         id: 0,
         client_name: "",
@@ -18,37 +19,50 @@ const HomeScreen = () => {
         queue_position: 0
     });
 
-    // Connection status
+    // Статус соединения
     const [connected, setConnected] = useState(false);
 
-    // Error state
+    // Состояние ошибки
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Progress tracking
+    // Отслеживание прогресса
     const [progress, setProgress] = useState(0);
     const [remainingTime, setRemainingTime] = useState(60);
 
     useEffect(() => {
-        // Определяем ID заказа из URL
-        let websocketId = null;
-
-        // Сначала пробуем получить из хэша (приоритетный способ)
-        if (window.location.hash && window.location.hash.length > 1) {
-            websocketId = window.location.hash.substring(1);
-            console.log("ID получен из hash:", websocketId);
-        }
-
-        // Если не нашли в хэше, пробуем из query params
-        if (!websocketId) {
-            const urlParams = new URLSearchParams(window.location.search);
-            websocketId = urlParams.get('id');
-            console.log("ID получен из query params:", websocketId);
-        }
+        // Определяем ID заказа
+        let websocketId = propWebsocketId; // Сначала используем prop, если передан
 
         if (!websocketId) {
-            console.error('ID заказа не найден в URL');
-            setError('Не удалось найти ID заказа в URL. Пожалуйста, отсканируйте QR-код снова.');
+            // Проверяем hash в URL
+            if (window.location.hash && window.location.hash.length > 1) {
+                websocketId = window.location.hash.substring(1);
+                console.log("ID получен из hash:", websocketId);
+            }
+
+            // Проверяем query параметры
+            if (!websocketId) {
+                const urlParams = new URLSearchParams(window.location.search);
+                websocketId = urlParams.get('id');
+                console.log("ID получен из query params:", websocketId);
+            }
+
+            // Проверяем, не находимся ли мы на пути /track/ID
+            if (!websocketId && window.location.pathname.startsWith('/track/')) {
+                const pathParts = window.location.pathname.split('/');
+                if (pathParts.length >= 3) {
+                    websocketId = pathParts[2];
+                    console.log("ID получен из path:", websocketId);
+                }
+            }
+        } else {
+            console.log("ID получен из props:", websocketId);
+        }
+
+        if (!websocketId) {
+            console.error('ID заказа не найден');
+            setError('Не удалось найти ID заказа. Пожалуйста, отсканируйте QR-код снова.');
             setLoading(false);
             return;
         }
@@ -60,7 +74,6 @@ const HomeScreen = () => {
 
         // Если мы находимся на HTTPS сайте, пытаемся использовать WSS
         if (window.location.protocol === 'https:') {
-            // Используем небезопасное соединение в тестовом режиме, в продакшене нужно использовать WSS
             console.log('Сайт использует HTTPS, но сервер поддерживает только WS');
             // wsProtocol = 'wss://'; // Раскомментируйте когда настроите SSL на сервере
         }
@@ -153,7 +166,9 @@ const HomeScreen = () => {
             clearTimeout(connectionTimeout);
             socket.close();
         };
-    }, []);
+    }, [propWebsocketId]);
+
+    // Далее весь код остается неизменным
 
     // Форматирование номера телефона
     const formatPhone = (phone) => {
@@ -247,6 +262,9 @@ const HomeScreen = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Остальной UI остается неизменным */}
+                {/* ... */}
 
                 {/* Queue information */}
                 <div className="bg-gray-100 rounded-full px-6 py-2 mx-auto w-fit my-4">
