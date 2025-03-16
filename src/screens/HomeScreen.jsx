@@ -30,104 +30,117 @@ const HomeScreen = () => {
     const [remainingTime, setRemainingTime] = useState(60);
 
     useEffect(() => {
-        // Parse the websocket ID from the URL (both query params and hash)
+        // Определяем ID заказа из URL
         let websocketId = null;
 
-        // Try to get from query params
-        const urlParams = new URLSearchParams(window.location.search);
-        websocketId = urlParams.get('id');
-
-        // If not found, try to get from hash
-        if (!websocketId && window.location.hash && window.location.hash.length > 1) {
+        // Сначала пробуем получить из хэша (приоритетный способ)
+        if (window.location.hash && window.location.hash.length > 1) {
             websocketId = window.location.hash.substring(1);
+            console.log("ID получен из hash:", websocketId);
+        }
+
+        // Если не нашли в хэше, пробуем из query params
+        if (!websocketId) {
+            const urlParams = new URLSearchParams(window.location.search);
+            websocketId = urlParams.get('id');
+            console.log("ID получен из query params:", websocketId);
         }
 
         if (!websocketId) {
-            console.error('No WebSocket ID found in URL');
+            console.error('ID заказа не найден в URL');
             setError('Не удалось найти ID заказа в URL. Пожалуйста, отсканируйте QR-код снова.');
             setLoading(false);
             return;
         }
 
-        console.log('WebSocket ID found:', websocketId);
+        console.log('WebSocket ID найден:', websocketId);
 
-        // Create WebSocket connection using the ID from URL
-        const wsUrl = `ws://84.54.12.243/ws/order/${websocketId}/`;
-        console.log('Connecting to WebSocket:', wsUrl);
+        // Создаем WebSocket соединение
+        let wsProtocol = 'ws://';
+
+        // Если мы находимся на HTTPS сайте, пытаемся использовать WSS
+        if (window.location.protocol === 'https:') {
+            // Используем небезопасное соединение в тестовом режиме, в продакшене нужно использовать WSS
+            console.log('Сайт использует HTTPS, но сервер поддерживает только WS');
+            // wsProtocol = 'wss://'; // Раскомментируйте когда настроите SSL на сервере
+        }
+
+        const wsUrl = `${wsProtocol}84.54.12.243/ws/order/${websocketId}/`;
+        console.log('Подключение к WebSocket:', wsUrl);
 
         let socket;
         try {
             socket = new WebSocket(wsUrl);
         } catch (err) {
-            console.error('Error creating WebSocket:', err);
+            console.error('Ошибка создания WebSocket:', err);
             setError('Не удалось подключиться к серверу. Пожалуйста, проверьте соединение и попробуйте снова.');
             setLoading(false);
             return;
         }
 
-        // Add connection timeout
+        // Устанавливаем таймаут на подключение
         const connectionTimeout = setTimeout(() => {
             if (!connected) {
-                console.error('WebSocket connection timeout');
+                console.error('Превышено время ожидания WebSocket подключения');
                 setError('Превышено время ожидания подключения. Пожалуйста, попробуйте позже.');
                 setLoading(false);
                 socket.close();
             }
-        }, 10000); // 10 seconds timeout
+        }, 10000); // 10 секунд таймаут
 
-        // Handle connection open
+        // Успешное подключение
         socket.onopen = () => {
-            console.log('WebSocket connection established');
+            console.log('WebSocket соединение установлено');
             clearTimeout(connectionTimeout);
             setConnected(true);
             setLoading(false);
         };
 
-        // Handle messages
+        // Получение сообщений
         socket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                console.log('Received data:', data);
+                console.log('Получены данные:', data);
                 setOrderData(data);
 
-                // Calculate progress based on status
+                // Расчет прогресса на основе статуса
                 if (data.status === "in_progress") {
                     const createdTime = new Date(data.created_at);
                     const now = new Date();
                     const elapsedMinutes = Math.floor((now - createdTime) / (1000 * 60));
 
-                    // Assume full service takes 60 minutes
+                    // Предполагаем, что полный сервис занимает 60 минут
                     const totalServiceTime = 60;
                     const newProgress = Math.min(Math.floor((elapsedMinutes / totalServiceTime) * 100), 99);
                     setProgress(newProgress);
 
-                    // Remaining time
+                    // Оставшееся время
                     const remainingMins = Math.max(totalServiceTime - elapsedMinutes, 0);
                     setRemainingTime(remainingMins);
                 } else if (data.status === "completed") {
                     setProgress(100);
                     setRemainingTime(0);
                 } else if (data.status === "pending") {
-                    // For pending orders, show initial progress
+                    // Для ожидающих заказов показываем начальный прогресс
                     setProgress(5);
                     setRemainingTime(60);
                 }
             } catch (error) {
-                console.error('Error processing data:', error);
+                console.error('Ошибка обработки данных:', error);
             }
         };
 
-        // Handle errors
+        // Обработка ошибок
         socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
+            console.error('Ошибка WebSocket:', error);
             setConnected(false);
             setError('Произошла ошибка при подключении к серверу. Пожалуйста, попробуйте позже.');
             setLoading(false);
         };
 
-        // Handle connection close
+        // Обработка закрытия соединения
         socket.onclose = () => {
-            console.log('WebSocket connection closed');
+            console.log('WebSocket соединение закрыто');
             setConnected(false);
             if (loading) {
                 setError('Соединение закрыто. Не удалось получить данные заказа.');
@@ -135,20 +148,20 @@ const HomeScreen = () => {
             }
         };
 
-        // Cleanup on component unmount
+        // Очистка при размонтировании компонента
         return () => {
             clearTimeout(connectionTimeout);
             socket.close();
         };
     }, []);
 
-    // Format phone number
+    // Форматирование номера телефона
     const formatPhone = (phone) => {
         if (!phone) return "";
-        return `+${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(9)}`;
+        return `+${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6, 9)} ${phone.slice(9)}`;
     };
 
-    // Get package name
+    // Получение названия пакета
     const getPackageName = () => {
         if (orderData.package_details && orderData.package_details.length > 0) {
             return orderData.package_details[0].name;
@@ -156,14 +169,14 @@ const HomeScreen = () => {
         return "Нет данных";
     };
 
-    // Format time as mm:ss
+    // Форматирование времени как mm:ss
     const formatTime = (minutes) => {
         const mins = Math.floor(minutes);
         const secs = Math.floor((minutes - mins) * 60);
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     };
 
-    // Get status text in Russian
+    // Получение текста статуса на русском
     const getStatusText = (status) => {
         switch (status) {
             case 'pending': return 'Ожидание';
@@ -173,7 +186,7 @@ const HomeScreen = () => {
         }
     };
 
-    // Get status color classes
+    // Получение классов цветов для статуса
     const getStatusClasses = (status) => {
         switch (status) {
             case 'pending': return 'bg-yellow-100 text-yellow-700';
@@ -183,7 +196,7 @@ const HomeScreen = () => {
         }
     };
 
-    // If loading or error, show appropriate screen
+    // Если загрузка или ошибка, показываем соответствующий экран
     if (loading) {
         return (
             <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
