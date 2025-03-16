@@ -1,9 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Clock } from 'lucide-react';
 
-// Добавлен необязательный prop websocketId
 const HomeScreen = ({ websocketId: propWebsocketId }) => {
     // State для хранения данных WebSocket
     const [orderData, setOrderData] = useState({
@@ -30,74 +29,52 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
     const [progress, setProgress] = useState(0);
     const [remainingTime, setRemainingTime] = useState(60);
 
-    useEffect(() => {
-        // Определяем ID заказа
-        let websocketId = propWebsocketId; // Сначала используем prop, если передан
+    // Для отслеживания попыток переподключения
+    const [reconnectAttempt, setReconnectAttempt] = useState(0);
+    const maxReconnectAttempts = 5;
 
-        if (!websocketId) {
-            // Проверяем hash в URL
-            if (window.location.hash && window.location.hash.length > 1) {
-                websocketId = window.location.hash.substring(1);
-                console.log("ID получен из hash:", websocketId);
-            }
-
-            // Проверяем query параметры
-            if (!websocketId) {
-                const urlParams = new URLSearchParams(window.location.search);
-                websocketId = urlParams.get('id');
-                console.log("ID получен из query params:", websocketId);
-            }
-
-            // Проверяем, не находимся ли мы на пути /track/ID
-            if (!websocketId && window.location.pathname.startsWith('/track/')) {
-                const pathParts = window.location.pathname.split('/');
-                if (pathParts.length >= 3) {
-                    websocketId = pathParts[2];
-                    console.log("ID получен из path:", websocketId);
-                }
-            }
-        } else {
-            console.log("ID получен из props:", websocketId);
-        }
-
-        if (!websocketId) {
+    // Функция для создания WebSocket соединения
+    const createWebSocketConnection = useCallback((wsId) => {
+        if (!wsId) {
             console.error('ID заказа не найден');
             setError('Не удалось найти ID заказа. Пожалуйста, отсканируйте QR-код снова.');
             setLoading(false);
-            return;
+            return null;
         }
 
-        console.log('WebSocket ID найден:', websocketId);
+        console.log('WebSocket ID найден:', wsId);
 
-        // Создаем WebSocket соединение
-        let wsProtocol = 'ws://';
-
-        // Если мы находимся на HTTPS сайте, пытаемся использовать WSS
-        if (window.location.protocol === 'https:') {
-            console.log('Сайт использует HTTPS, но сервер поддерживает только WS');
-            // wsProtocol = 'wss://'; // Раскомментируйте когда настроите SSL на сервере
-        }
-
-        const wsUrl = `${wsProtocol}84.54.12.243/ws/order/${websocketId}/`;
+        // Используем фиксированный URL для WebSocket сервера
+        // Поскольку мы теперь работаем локально на порту 3001
+        const wsUrl = `ws://84.54.12.243/ws/order/${wsId}/`;
         console.log('Подключение к WebSocket:', wsUrl);
 
         let socket;
         try {
             socket = new WebSocket(wsUrl);
+            console.log('WebSocket создан');
         } catch (err) {
             console.error('Ошибка создания WebSocket:', err);
             setError('Не удалось подключиться к серверу. Пожалуйста, проверьте соединение и попробуйте снова.');
             setLoading(false);
-            return;
+            return null;
         }
 
         // Устанавливаем таймаут на подключение
         const connectionTimeout = setTimeout(() => {
             if (!connected) {
                 console.error('Превышено время ожидания WebSocket подключения');
-                setError('Превышено время ожидания подключения. Пожалуйста, попробуйте позже.');
-                setLoading(false);
                 socket.close();
+
+                // Пробуем переподключиться, если не превысили максимальное количество попыток
+                if (reconnectAttempt < maxReconnectAttempts) {
+                    console.log(`Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
+                    setReconnectAttempt(prev => prev + 1);
+                    // Не показываем ошибку при переподключении
+                } else {
+                    setError('Превышено время ожидания подключения. Пожалуйста, попробуйте позже.');
+                    setLoading(false);
+                }
             }
         }, 10000); // 10 секунд таймаут
 
@@ -107,6 +84,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
             clearTimeout(connectionTimeout);
             setConnected(true);
             setLoading(false);
+            setReconnectAttempt(0); // Сбрасываем счетчик попыток
         };
 
         // Получение сообщений
@@ -147,28 +125,78 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
         socket.onerror = (error) => {
             console.error('Ошибка WebSocket:', error);
             setConnected(false);
-            setError('Произошла ошибка при подключении к серверу. Пожалуйста, попробуйте позже.');
-            setLoading(false);
+
+            // При ошибке WebSocket попытаемся переподключиться
+            if (reconnectAttempt < maxReconnectAttempts) {
+                console.log(`Ошибка соединения. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
+                setReconnectAttempt(prev => prev + 1);
+            } else {
+                setError('Произошла ошибка при подключении к серверу. Пожалуйста, попробуйте позже.');
+                setLoading(false);
+            }
         };
 
         // Обработка закрытия соединения
-        socket.onclose = () => {
-            console.log('WebSocket соединение закрыто');
+        socket.onclose = (event) => {
+            console.log(`WebSocket соединение закрыто. Код: ${event.code}, Причина: ${event.reason}`);
             setConnected(false);
-            if (loading) {
+
+            // При закрытии WebSocket пытаемся переподключиться
+            if (reconnectAttempt < maxReconnectAttempts) {
+                console.log(`Соединение закрыто. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
+                setReconnectAttempt(prev => prev + 1);
+            } else if (loading) {
                 setError('Соединение закрыто. Не удалось получить данные заказа.');
                 setLoading(false);
             }
         };
 
-        // Очистка при размонтировании компонента
-        return () => {
-            clearTimeout(connectionTimeout);
-            socket.close();
-        };
-    }, [propWebsocketId]);
+        return { socket, connectionTimeout };
+    }, [connected, reconnectAttempt, loading]);
 
-    // Далее весь код остается неизменным
+    useEffect(() => {
+        // Определяем ID заказа
+        let websocketId = propWebsocketId; // Сначала используем prop, если передан
+
+        if (!websocketId) {
+            // Проверяем hash в URL
+            if (window.location.hash && window.location.hash.length > 1) {
+                websocketId = window.location.hash.substring(1);
+                console.log("ID получен из hash:", websocketId);
+            }
+
+            // Проверяем query параметры
+            if (!websocketId) {
+                const urlParams = new URLSearchParams(window.location.search);
+                websocketId = urlParams.get('id');
+                console.log("ID получен из query params:", websocketId);
+            }
+
+            // Проверяем, не находимся ли мы на пути /track/ID
+            if (!websocketId && window.location.pathname.startsWith('/track/')) {
+                const pathParts = window.location.pathname.split('/');
+                if (pathParts.length >= 3) {
+                    websocketId = pathParts[2];
+                    console.log("ID получен из path:", websocketId);
+                }
+            }
+        } else {
+            console.log("ID получен из props:", websocketId);
+        }
+
+        let socketData = null;
+
+        // Создаем новое соединение
+        socketData = createWebSocketConnection(websocketId);
+
+        // Функция очистки
+        return () => {
+            if (socketData) {
+                clearTimeout(socketData.connectionTimeout);
+                socketData.socket?.close();
+            }
+        };
+    }, [propWebsocketId, createWebSocketConnection, reconnectAttempt]);
 
     // Форматирование номера телефона
     const formatPhone = (phone) => {
@@ -219,6 +247,11 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                     <div className="my-8">
                         <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                         <p className="text-gray-600">Загрузка данных заказа...</p>
+                        {reconnectAttempt > 0 && (
+                            <p className="text-sm text-gray-500 mt-2">
+                                Попытка подключения: {reconnectAttempt} из {maxReconnectAttempts}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -262,9 +295,6 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                         </div>
                     </div>
                 </div>
-
-                {/* Остальной UI остается неизменным */}
-                {/* ... */}
 
                 {/* Queue information */}
                 <div className="bg-gray-100 rounded-full px-6 py-2 mx-auto w-fit my-4">
