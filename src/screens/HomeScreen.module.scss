@@ -1,0 +1,40 @@
+.queue {
+    z-index: 20;
+    border: 3px solid #E0DFE4;
+    background: linear-gradient(123.54deg, #FAFAFA 31.88%, #E9E8ED 68.75%);
+
+    span {
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 30px;
+        letter-spacing: 0px;
+        vertical-align: middle;
+    }
+
+    .text {
+        color: #8391B3;
+    }
+
+    .number {
+        color: #0B52C7;
+    }
+
+}
+
+.background_clock {
+    position: absolute;
+    width: 250px;
+    z-index: 0;
+    margin-top: 90px;
+}
+
+.car {
+    width: 328px;
+    position: absolute;
+    top: -35px;
+}
+
+.bottom_nav {
+    background: linear-gradient(293.25deg, #DFE7F1 34.86%, #F3F2F7 67.93%);
+    border-radius: 48px;
+}

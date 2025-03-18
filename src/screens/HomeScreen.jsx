@@ -2,6 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock } from 'lucide-react';
+import styles from "./HomeScreen.module.scss"
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { CircularProgressbar } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
 
 const HomeScreen = ({ websocketId: propWebsocketId }) => {
     // State для хранения данных WebSocket
@@ -34,169 +39,173 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
     const maxReconnectAttempts = 5;
 
     // Функция для создания WebSocket соединения
-    const createWebSocketConnection = useCallback((wsId) => {
-        if (!wsId) {
-            console.error('ID заказа не найден');
-            setError('Не удалось найти ID заказа. Пожалуйста, отсканируйте QR-код снова.');
-            setLoading(false);
-            return null;
-        }
 
-        console.log('WebSocket ID найден:', wsId);
+    // РАСКОМЕНТИТЬ
+    // const createWebSocketConnection = useCallback((wsId) => {
+    //     if (!wsId) {
+    //         console.error('ID заказа не найден');
+    //         setError('Не удалось найти ID заказа. Пожалуйста, отсканируйте QR-код снова.');
+    //         setLoading(false);
+    //         return null;
+    //     }
 
-        // Используем фиксированный URL для WebSocket сервера
-        // Поскольку мы теперь работаем локально на порту 3001
-        const wsUrl = `ws://84.54.12.243/ws/order/${wsId}/`;
-        console.log('Подключение к WebSocket:', wsUrl);
+    //     console.log('WebSocket ID найден:', wsId);
 
-        let socket;
-        try {
-            socket = new WebSocket(wsUrl);
-            console.log('WebSocket создан');
-        } catch (err) {
-            console.error('Ошибка создания WebSocket:', err);
-            setError('Не удалось подключиться к серверу. Пожалуйста, проверьте соединение и попробуйте снова.');
-            setLoading(false);
-            return null;
-        }
+    //     // Используем фиксированный URL для WebSocket сервера
+    //     // Поскольку мы теперь работаем локально на порту 3001
+    //     const wsUrl = `ws://84.54.12.243/ws/order/${wsId}/`;
+    //     console.log('Подключение к WebSocket:', wsUrl);
 
-        // Устанавливаем таймаут на подключение
-        const connectionTimeout = setTimeout(() => {
-            if (!connected) {
-                console.error('Превышено время ожидания WebSocket подключения');
-                socket.close();
+    //     let socket;
+    //     try {
+    //         socket = new WebSocket(wsUrl);
+    //         console.log('WebSocket создан');
+    //     } catch (err) {
+    //         console.error('Ошибка создания WebSocket:', err);
+    //         setError('Не удалось подключиться к серверу. Пожалуйста, проверьте соединение и попробуйте снова.');
+    //         setLoading(false);
+    //         return null;
+    //     }
 
-                // Пробуем переподключиться, если не превысили максимальное количество попыток
-                if (reconnectAttempt < maxReconnectAttempts) {
-                    console.log(`Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
-                    setReconnectAttempt(prev => prev + 1);
-                    // Не показываем ошибку при переподключении
-                } else {
-                    setError('Превышено время ожидания подключения. Пожалуйста, попробуйте позже.');
-                    setLoading(false);
-                }
-            }
-        }, 10000); // 10 секунд таймаут
+    //     // Устанавливаем таймаут на подключение
+    //     const connectionTimeout = setTimeout(() => {
+    //         if (!connected) {
+    //             console.error('Превышено время ожидания WebSocket подключения');
+    //             socket.close();
 
-        // Успешное подключение
-        socket.onopen = () => {
-            console.log('WebSocket соединение установлено');
-            clearTimeout(connectionTimeout);
-            setConnected(true);
-            setLoading(false);
-            setReconnectAttempt(0); // Сбрасываем счетчик попыток
-        };
+    //             // Пробуем переподключиться, если не превысили максимальное количество попыток
+    //             if (reconnectAttempt < maxReconnectAttempts) {
+    //                 console.log(`Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
+    //                 setReconnectAttempt(prev => prev + 1);
+    //                 // Не показываем ошибку при переподключении
+    //             } else {
+    //                 setError('Превышено время ожидания подключения. Пожалуйста, попробуйте позже.');
+    //                 setLoading(false);
+    //             }
+    //         }
+    //     }, 10000); // 10 секунд таймаут
 
-        // Получение сообщений
-        socket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                console.log('Получены данные:', data);
-                setOrderData(data);
+    //     // Успешное подключение
+    //     socket.onopen = () => {
+    //         console.log('WebSocket соединение установлено');
+    //         clearTimeout(connectionTimeout);
+    //         setConnected(true);
+    //         setLoading(false);
+    //         setReconnectAttempt(0); // Сбрасываем счетчик попыток
+    //     };
 
-                // Расчет прогресса на основе статуса
-                if (data.status === "in_progress") {
-                    const createdTime = new Date(data.created_at);
-                    const now = new Date();
-                    const elapsedMinutes = Math.floor((now - createdTime) / (1000 * 60));
+    //     // Получение сообщений
+    //     socket.onmessage = (event) => {
+    //         try {
+    //             const data = JSON.parse(event.data);
+    //             console.log('Получены данные:', data);
+    //             setOrderData(data);
 
-                    // Предполагаем, что полный сервис занимает 60 минут
-                    const totalServiceTime = 60;
-                    const newProgress = Math.min(Math.floor((elapsedMinutes / totalServiceTime) * 100), 99);
-                    setProgress(newProgress);
+    //             // Расчет прогресса на основе статуса
+    //             if (data.status === "in_progress") {
+    //                 const createdTime = new Date(data.created_at);
+    //                 const now = new Date();
+    //                 const elapsedMinutes = Math.floor((now - createdTime) / (1000 * 60));
 
-                    // Оставшееся время
-                    const remainingMins = Math.max(totalServiceTime - elapsedMinutes, 0);
-                    setRemainingTime(remainingMins);
-                } else if (data.status === "completed") {
-                    setProgress(100);
-                    setRemainingTime(0);
-                } else if (data.status === "pending") {
-                    // Для ожидающих заказов показываем начальный прогресс
-                    setProgress(5);
-                    setRemainingTime(60);
-                }
-            } catch (error) {
-                console.error('Ошибка обработки данных:', error);
-            }
-        };
+    //                 // Предполагаем, что полный сервис занимает 60 минут
+    //                 const totalServiceTime = 60;
+    //                 const newProgress = Math.min(Math.floor((elapsedMinutes / totalServiceTime) * 100), 99);
+    //                 setProgress(newProgress);
 
-        // Обработка ошибок
-        socket.onerror = (error) => {
-            console.error('Ошибка WebSocket:', error);
-            setConnected(false);
+    //                 // Оставшееся время
+    //                 const remainingMins = Math.max(totalServiceTime - elapsedMinutes, 0);
+    //                 setRemainingTime(remainingMins);
+    //             } else if (data.status === "completed") {
+    //                 setProgress(100);
+    //                 setRemainingTime(0);
+    //             } else if (data.status === "pending") {
+    //                 // Для ожидающих заказов показываем начальный прогресс
+    //                 setProgress(5);
+    //                 setRemainingTime(60);
+    //             }
+    //         } catch (error) {
+    //             console.error('Ошибка обработки данных:', error);
+    //         }
+    //     };
 
-            // При ошибке WebSocket попытаемся переподключиться
-            if (reconnectAttempt < maxReconnectAttempts) {
-                console.log(`Ошибка соединения. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
-                setReconnectAttempt(prev => prev + 1);
-            } else {
-                setError('Произошла ошибка при подключении к серверу. Пожалуйста, попробуйте позже.');
-                setLoading(false);
-            }
-        };
+    //     // Обработка ошибок
+    //     socket.onerror = (error) => {
+    //         console.error('Ошибка WebSocket:', error);
+    //         setConnected(false);
 
-        // Обработка закрытия соединения
-        socket.onclose = (event) => {
-            console.log(`WebSocket соединение закрыто. Код: ${event.code}, Причина: ${event.reason}`);
-            setConnected(false);
+    //         // При ошибке WebSocket попытаемся переподключиться
+    //         if (reconnectAttempt < maxReconnectAttempts) {
+    //             console.log(`Ошибка соединения. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
+    //             setReconnectAttempt(prev => prev + 1);
+    //         } else {
+    //             setError('Произошла ошибка при подключении к серверу. Пожалуйста, попробуйте позже.');
+    //             setLoading(false);
+    //         }
+    //     };
 
-            // При закрытии WebSocket пытаемся переподключиться
-            if (reconnectAttempt < maxReconnectAttempts) {
-                console.log(`Соединение закрыто. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
-                setReconnectAttempt(prev => prev + 1);
-            } else if (loading) {
-                setError('Соединение закрыто. Не удалось получить данные заказа.');
-                setLoading(false);
-            }
-        };
+    //     // Обработка закрытия соединения
+    //     socket.onclose = (event) => {
+    //         console.log(`WebSocket соединение закрыто. Код: ${event.code}, Причина: ${event.reason}`);
+    //         setConnected(false);
 
-        return { socket, connectionTimeout };
-    }, [connected, reconnectAttempt, loading]);
+    //         // При закрытии WebSocket пытаемся переподключиться
+    //         if (reconnectAttempt < maxReconnectAttempts) {
+    //             console.log(`Соединение закрыто. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
+    //             setReconnectAttempt(prev => prev + 1);
+    //         } else if (loading) {
+    //             setError('Соединение закрыто. Не удалось получить данные заказа.');
+    //             setLoading(false);
+    //         }
+    //     };
 
-    useEffect(() => {
-        // Определяем ID заказа
-        let websocketId = propWebsocketId; // Сначала используем prop, если передан
+    //     return { socket, connectionTimeout };
+    // }, [connected, reconnectAttempt, loading]);
 
-        if (!websocketId) {
-            // Проверяем hash в URL
-            if (window.location.hash && window.location.hash.length > 1) {
-                websocketId = window.location.hash.substring(1);
-                console.log("ID получен из hash:", websocketId);
-            }
+    // РАСКОМЕНТИТЬ
 
-            // Проверяем query параметры
-            if (!websocketId) {
-                const urlParams = new URLSearchParams(window.location.search);
-                websocketId = urlParams.get('id');
-                console.log("ID получен из query params:", websocketId);
-            }
+    // useEffect(() => {
+    //     // Определяем ID заказа
+    //     let websocketId = propWebsocketId; // Сначала используем prop, если передан
 
-            // Проверяем, не находимся ли мы на пути /track/ID
-            if (!websocketId && window.location.pathname.startsWith('/track/')) {
-                const pathParts = window.location.pathname.split('/');
-                if (pathParts.length >= 3) {
-                    websocketId = pathParts[2];
-                    console.log("ID получен из path:", websocketId);
-                }
-            }
-        } else {
-            console.log("ID получен из props:", websocketId);
-        }
+    //     if (!websocketId) {
+    //         // Проверяем hash в URL
+    //         if (window.location.hash && window.location.hash.length > 1) {
+    //             websocketId = window.location.hash.substring(1);
+    //             console.log("ID получен из hash:", websocketId);
+    //         }
 
-        let socketData = null;
+    //         // Проверяем query параметры
+    //         if (!websocketId) {
+    //             const urlParams = new URLSearchParams(window.location.search);
+    //             websocketId = urlParams.get('id');
+    //             console.log("ID получен из query params:", websocketId);
+    //         }
 
-        // Создаем новое соединение
-        socketData = createWebSocketConnection(websocketId);
+    //         // Проверяем, не находимся ли мы на пути /track/ID
+    //         if (!websocketId && window.location.pathname.startsWith('/track/')) {
+    //             const pathParts = window.location.pathname.split('/');
+    //             if (pathParts.length >= 3) {
+    //                 websocketId = pathParts[2];
+    //                 console.log("ID получен из path:", websocketId);
+    //             }
+    //         }
+    //     } else {
+    //         console.log("ID получен из props:", websocketId);
+    //     }
 
-        // Функция очистки
-        return () => {
-            if (socketData) {
-                clearTimeout(socketData.connectionTimeout);
-                socketData.socket?.close();
-            }
-        };
-    }, [propWebsocketId, createWebSocketConnection, reconnectAttempt]);
+    //     let socketData = null;
+
+    //     // Создаем новое соединение
+    //     socketData = createWebSocketConnection(websocketId);
+
+    //     // Функция очистки
+    //     return () => {
+    //         if (socketData) {
+    //             clearTimeout(socketData.connectionTimeout);
+    //             socketData.socket?.close();
+    //         }
+    //     };
+    // }, [propWebsocketId, createWebSocketConnection, reconnectAttempt]);
 
     // Форматирование номера телефона
     const formatPhone = (phone) => {
@@ -240,158 +249,201 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
     };
 
     // Если загрузка или ошибка, показываем соответствующий экран
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
-                <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
-                    <div className="my-8">
-                        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-gray-600">Загрузка данных заказа...</p>
-                        {reconnectAttempt > 0 && (
-                            <p className="text-sm text-gray-500 mt-2">
-                                Попытка подключения: {reconnectAttempt} из {maxReconnectAttempts}
-                            </p>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
-    if (error) {
-        return (
-            <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
-                <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
-                    <div className="my-8">
-                        <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                            <span className="text-red-500 text-2xl">!</span>
-                        </div>
-                        <h3 className="text-xl font-bold mb-2">Ошибка</h3>
-                        <p className="text-gray-600 mb-4">{error}</p>
-                        <button
-                            onClick={() => window.location.reload()}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-full"
-                        >
-                            Повторить
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // РАСКОМЕНТИТЬ
+
+    // if (loading) {
+    //     return (
+    //         <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
+    //             <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
+    //                 <div className="my-8">
+    //                     <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+    //                     <p className="text-gray-600">Загрузка данных заказа...</p>
+    //                     {reconnectAttempt > 0 && (
+    //                         <p className="text-sm text-gray-500 mt-2">
+    //                             Попытка подключения: {reconnectAttempt} из {maxReconnectAttempts}
+    //                         </p>
+    //                     )}
+    //                 </div>
+    //             </div>
+    //         </div>
+    //     );
+    // }
+
+    // if (error) {
+    //     return (
+    //         <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
+    //             <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
+    //                 <div className="my-8">
+    //                     <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+    //                         <span className="text-red-500 text-2xl">!</span>
+    //                     </div>
+    //                     <h3 className="text-xl font-bold mb-2">Ошибка</h3>
+    //                     <p className="text-gray-600 mb-4">{error}</p>
+    //                     <button
+    //                         onClick={() => window.location.reload()}
+    //                         className="px-4 py-2 bg-blue-500 text-white rounded-full"
+    //                     >
+    //                         Повторить
+    //                     </button>
+    //                 </div>
+    //             </div>
+    //         </div>
+    //     );
+    // }
+
+    const toastId = "reconnect-toast"; 
+
+    useEffect(() => {
+        if (!connected && !toast.isActive(toastId)) {
+            toast.warn("Переподключение...", {
+                toastId,
+                position: "top-center",
+                autoClose: false,
+                hideProgressBar: true,
+                closeOnClick: false,
+                draggable: false,
+                className: "bg-red-100 text-red-600 text-xs text-center rounded-full px-4 py-1",
+            });
+        } else if (connected) {
+            toast.dismiss(toastId); 
+        }
+    }, [connected]);
 
     return (
         <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
-            <div className="w-full max-w-sm bg-white rounded-3xl relative p-4 pb-6">
+            <div className="w-full max-w-sm bg-[#E8E8E8] rounded-3xl relative p-4 pb-6">
                 {/* Header with logo */}
                 <div className="flex justify-center my-4">
                     <div className="flex items-center">
-                        <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center mr-2">
-                            <div className="w-5 h-5 bg-white rounded-sm"></div>
-                        </div>
                         <div>
-                            <span className="text-blue-500 font-bold text-xl">UNAA</span>
-                            <span className="text-gray-400 text-sm block -mt-1">DETAILING</span>
+                            <img src='/images/logo.svg' alt='logo' />
                         </div>
                     </div>
                 </div>
 
                 {/* Queue information */}
-                <div className="bg-gray-100 rounded-full px-6 py-2 mx-auto w-fit my-4">
-                    <span className="text-gray-600">Ваше авто на очереди: <span className="font-bold">{orderData.queue_position}</span></span>
+                <div className={`bg-gray-100 rounded-full px-6 py-2 mx-auto w-fit my-4 ${styles.queue}`}>
+                    <span className={styles.text}>Ваше авто на очереди: <span className={styles.number}>{orderData.queue_position}</span></span>
                 </div>
 
                 {/* Connection status indicator */}
-                {!connected && (
+                {/* {!connected && (
                     <div className="bg-red-100 text-red-600 text-xs text-center rounded-full px-4 py-1 mx-auto w-fit -mt-2 mb-2">
                         Переподключение...
                     </div>
-                )}
+                )} */}
+                <ToastContainer />
 
                 {/* Progress circle */}
-                <div className="relative flex justify-center my-4">
-                    <div className="w-48 h-48 rounded-full bg-blue-100 flex items-center justify-center">
-                        <div className="w-40 h-40 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center">
+                <div className="relative flex justify-center my-8">
+                    <div className="absolute w-80 h-80 z-10">
+                        <CircularProgressbar
+                            value={progress}
+                            strokeWidth={10}
+                            className='mt-[-20px]'
+                            styles={{
+                                path: {
+                                    stroke: '#B2D0EB',
+                                    strokeLinecap: 'round',
+                                    transform: 'rotate(-180deg)',
+                                    transformOrigin: 'center center',
+                                    background: 'linear-gradient(180deg, #B1CFEC 0%, #CADFE8 52.69%, #E3E2E4 90.33%)',
+                                    boxShadow: '0px 4px 22.8px 0px #0B52C71A inset',
+                                },
+                                trail: {
+                                    stroke: 'transparent', 
+                                },
+                                text: {
+                                    fill: '#4db8ff',
+                                    fontSize: '16px',
+                                    fontWeight: 'bold',
+                                },
+                            }}
+                        />
+                    </div>
+
+                    <div className="w-48 h-48 rounded-full flex items-center justify-center">
+                        <div className="w-40 h-40 rounded-full flex items-center justify-center">
                             <div className="w-36 h-36 rounded-full bg-white flex flex-col items-center justify-center">
-                                {/* Timer icon */}
-                                <div className="bg-blue-100 rounded-full p-2 mb-1">
-                                    <Clock className="text-blue-500 w-4 h-4" />
-                                </div>
+                                <img src='/images/clock.svg' alt='clock' style={{ zIndex: "20", marginBottom: '10px' }} />
+                                <img className={styles.background_clock} src='/images/clock_mask.png' alt='background' />
 
-                                {/* Percentage */}
-                                <span className="text-5xl font-bold text-gray-700">{progress}%</span>
+                                <span className="text-5xl font-bold text-white-700" style={{ zIndex: "20" }}>{progress}%</span>
 
-                                {/* Remaining time */}
-                                <span className="text-sm text-gray-500">Осталось: {remainingTime} мин</span>
+                                <span className="text-sm text-white-500" style={{ zIndex: "20" }}>Осталось: {remainingTime} мин</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Car image */}
-                <div className="flex justify-center -mt-4 mb-2">
+                <div className="relative flex justify-center -mt-4 mb-2 h-57 z-40">
                     <img
-                        src="/api/placeholder/400/200"
+                        src="/images/car.png"
                         alt="Car"
-                        className="w-64"
+                        className={styles.car}
                     />
                 </div>
 
                 {/* Car info and call section */}
-                <div className="bg-gray-50 rounded-2xl p-4 mt-4 flex justify-between items-center">
-                    <div>
-                        <p className="text-gray-400 text-sm">Данные заказа</p>
-                        <h3 className="font-bold text-xl">{getPackageName()}</h3>
-                        <p className="text-gray-600">ID: {orderData.id}</p>
-                    </div>
-                    <a href={`tel:${orderData.client_phone}`} className="bg-black text-white rounded-full px-4 py-2 font-medium">
-                        Позвонить
-                    </a>
-                </div>
-
-                {/* Time display */}
-                <div className="flex justify-center mt-2">
-                    <span className="text-blue-500 text-3xl font-bold">{formatTime(remainingTime)}</span>
-                </div>
-
-                {/* Client info */}
-                <div className="flex justify-between items-center mt-2 px-2">
-                    <div className="text-sm text-gray-600">
-                        <span>Клиент: {orderData.client_name}</span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                        <span>Цена: {orderData.total_price} с.</span>
-                    </div>
-                </div>
-
-                {/* Bottom navigation */}
-                <div className="flex justify-between mt-4">
-                    <div className="w-1/3 flex justify-center">
-                        <div className="bg-blue-500 rounded-full p-2 w-12 h-12 flex items-center justify-center">
-                            <Clock className="text-white w-6 h-6" />
+                <div className='bg-gray-50 rounded-4xl p-7 mt-4'>
+                    <div className="flex justify-between">
+                        <div className='flex flex-col'>
+                            <p className="text-gray-400 text-sm" style={{ color: "#00000040" }}>Данные заказа</p>
+                            <h3 className="font-semibold text-xl mt-1" style={{ color: "#1E1E1E" }}>{getPackageName()}</h3>
+                            {/* <p className="text-gray-600">ID: {orderData.id}</p> */}
                         </div>
-                    </div>
-                    <div className="w-1/3 flex justify-center">
-                        <div className="bg-gray-100 rounded-full p-2 w-12 h-12 flex items-center justify-center">
-                            <div className="flex">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full mx-px"></div>
-                                <div className="w-2 h-2 bg-blue-500 rounded-full mx-px"></div>
+                        <div className='right_content'>
+                            <a href={`tel:${orderData.client_phone}`} className="bg-black text-white rounded-full px-4 py-2 font-medium">
+                                Позвонить
+                            </a>
+                            {/* Time display */}
+                            <div className="flex justify-center mt-2">
+                                <span className="text-blue-500 text-3xl font-bold">{formatTime(remainingTime)}</span>
                             </div>
                         </div>
                     </div>
-                    <div className="w-1/3 flex justify-center">
-                        <div className="bg-gray-100 rounded-full p-2 w-12 h-12 flex items-center justify-center">
-                            <div className="w-6 h-6 border-2 border-blue-500 rounded-full flex items-center justify-center">
-                                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    {/* Bottom navigation */}
+                    <div className={`flex justify-between mt-4 ${styles.bottom_nav}`}>
+                        <div className="w-1/3 flex justify-center">
+                            <div className="bg-blue-500 rounded-full p-2 w-24 h-12 flex items-center justify-center">
+                                <img src='/images/bottom_navigation_icons/clock.svg' alt='clock' />
+                            </div>
+                        </div>
+                        <div className="w-1/3 flex justify-center">
+                            <div className="bg-gray-100 rounded-full p-2 w-12 h-12 flex items-center justify-center">
+                                <div className="flex">
+                                    <img src='/images/bottom_navigation_icons/buble.svg' alt='buble' />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="w-1/3 flex justify-center">
+                            <div className="bg-gray-100 rounded-full p-2 w-12 h-12 flex items-center justify-center">
+                                <div className="w-6 h-6 rounded-full flex items-center justify-center">
+                                    <img src='/images/bottom_navigation_icons/verified.svg' alt='verified' />
+                                </div>
                             </div>
                         </div>
                     </div>
+
+
+
+                    {/* Client info */}
+                    {/* <div className="flex justify-between items-center mt-2 px-2">
+                        <div className="text-sm text-gray-600">
+                            <span>Клиент: {orderData.client_name}</span>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                            <span>Цена: {orderData.total_price} с.</span>
+                        </div>
+                    </div> */}
                 </div>
 
                 {/* Status indicator */}
-                <div className={`text-center mt-3 text-xs font-medium px-3 py-1 rounded-full mx-auto w-fit ${getStatusClasses(orderData.status)}`}>
+                {/* <div className={`text-center mt-3 text-xs font-medium px-3 py-1 rounded-full mx-auto w-fit ${getStatusClasses(orderData.status)}`}>
                     {getStatusText(orderData.status)}
-                </div>
+                </div> */}
             </div>
         </div>
     );
