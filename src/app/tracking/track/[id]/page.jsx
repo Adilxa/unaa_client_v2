@@ -1,7 +1,7 @@
 'use client'
 
 import { useParams } from 'next/navigation';
-import HomeScreen from '../../../screens/HomeScreen'; // Убедитесь, что путь правильный
+import HomeScreen from '../../../../screens/HomeScreen'; // Убедитесь, что путь правильный
 
 export default function TrackPage() {
     const params = useParams();
