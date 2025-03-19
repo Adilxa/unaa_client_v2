@@ -6,7 +6,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-
+import styles from "./HomeScreen.module.scss"
 const HomeScreen = ({ websocketId: propWebsocketId }) => {
     // State для хранения данных WebSocket
     const [orderData, setOrderData] = useState({
@@ -18,6 +18,8 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
         total_price: "0.00",
         status: "pending",
         created_at: "",
+        started_at: "",
+        total_duration: 0,
         updated_at: "",
         queue_position: 0
     });
@@ -31,7 +33,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
 
     // Отслеживание прогресса
     const [progress, setProgress] = useState(0);
-    const [remainingTime, setRemainingTime] = useState(60);
+    const [remainingTime, setRemainingTime] = useState(orderData.total_duration);
 
     // Для отслеживания попыток переподключения
     const [reconnectAttempt, setReconnectAttempt] = useState(0);
@@ -103,13 +105,17 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                 client_name: data.client_name || "Нет данных",
                 client_phone: data.client_phone || "",
                 employee_name: data.employee_name || "",
-                // Проверяем, является ли package_details массивом
                 package_details: Array.isArray(data.package_details) ? data.package_details : [],
                 total_price: data.total_price || "0.00",
                 status: data.status || "pending",
                 created_at: data.created_at || new Date().toISOString(),
                 updated_at: data.updated_at || new Date().toISOString(),
-                queue_position: data.queue_position !== undefined ? data.queue_position : 0
+                queue_position: data.queue_position !== undefined ? data.queue_position : 0,
+                started_at: data.started_at,
+                total_duration: data.total_duration,
+                car_brand: data.car_brand,
+                car_model: data.car_model,
+                car_license_plate: data.car_license_plate
             };
 
             // Применяем обновления только если данные изменились
@@ -121,34 +127,38 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                 return processedData;
             });
 
-            // Расчет прогресса на основе статуса
-            if (data.status === "in_progress") {
-                const createdTime = new Date(data.created_at);
+            // Расчет прогресса и оставшегося времени на основе статуса
+            if (data.status === "in_progress" && data.started_at) {
+                const startedAtTime = new Date(data.started_at);
                 const now = new Date();
-                const elapsedMinutes = Math.floor((now - createdTime) / (1000 * 60));
+                const elapsedMinutes = Math.floor((now - startedAtTime) / (1000 * 60)); // время в минутах
 
-                // Предполагаем, что полный сервис занимает 60 минут
-                const totalServiceTime = 60;
-                const newProgress = Math.min(Math.floor((elapsedMinutes / totalServiceTime) * 100), 99);
+                // Предполагаем, что полный сервис занимает 90 минут
+                const totalServiceTime = data.total_duration;
+
+                // Прогресс от 100 до 0
+                const newProgress = Math.max(100 - Math.floor((elapsedMinutes / totalServiceTime) * 100), 0);
                 setProgress(newProgress);
 
-                // Оставшееся время
+                // Оставшееся время (90 минут минус прошедшее время)
                 const remainingMins = Math.max(totalServiceTime - elapsedMinutes, 0);
                 setRemainingTime(remainingMins);
             } else if (data.status === "completed") {
-                setProgress(100);
+                setProgress(0); // При завершении заказ полностью обработан
                 setRemainingTime(0);
             } else if (data.status === "pending") {
-                // Для ожидающих заказов показываем начальный прогресс
-                setProgress(5);
-                setRemainingTime(60);
+                // Для ожидающих заказов показываем начальный прогресс (например, 100%)
+                setProgress(100);
+                setRemainingTime(90); // Время до начала работы, если нужно
             }
+
         } catch (error) {
             console.error('Ошибка обработки данных:', error);
         } finally {
             processingDataRef.current = false;
         }
     }, []);
+
 
     // Функция для создания WebSocket соединения
     const createWebSocketConnection = useCallback(() => {
@@ -280,30 +290,30 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
 
     // Добавляем оптимизацию обновления времени
     useEffect(() => {
-        let intervalId;
-
-        // Обновляем время только если заказ в процессе
-        if (orderData.status === 'in_progress' && connected) {
-            intervalId = setInterval(() => {
-                const createdTime = new Date(orderData.created_at);
+        if (orderData.status === "in_progress" && connected) {
+            const updateTime = () => {
+                const startedTime = new Date(orderData?.started_at);
                 const now = new Date();
-                const elapsedMinutes = Math.floor((now - createdTime) / (1000 * 60));
+                const elapsedMinutes = Math.floor((now - startedTime) / (1000 * 60));
 
-                const totalServiceTime = 60;
-                const newProgress = Math.min(Math.floor((elapsedMinutes / totalServiceTime) * 100), 99);
+                const totalServiceTime = orderData.total_duration; // В минутах
+                const remainingMins = Math.max(totalServiceTime - elapsedMinutes, 0); // Оставшееся время
 
-                // Оставшееся время
-                const remainingMins = Math.max(totalServiceTime - elapsedMinutes, 0);
+                // Прогресс в процентах (макс. 100%)
+                const newProgress = Math.max(100 - Math.floor((elapsedMinutes / totalServiceTime) * 100), 0);
 
-                setProgress(newProgress);
-                setRemainingTime(remainingMins);
-            }, 60000); // Обновление раз в минуту
+                setProgress(newProgress); // Обновляем прогресс
+                setRemainingTime(remainingMins); // Обновляем оставшееся время
+            };
+
+            updateTime(); // Вызываем сразу, чтобы не ждать 1 минуту
+            const intervalId = setInterval(updateTime, 60000); // Обновление раз в минуту
+
+            return () => clearInterval(intervalId);
         }
+    }, [orderData, connected]);
 
-        return () => {
-            if (intervalId) clearInterval(intervalId);
-        };
-    }, [orderData.status, orderData.created_at, connected]);
+
 
     // Уведомление о переподключении
     useEffect(() => {
@@ -321,6 +331,21 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
             toast.dismiss(toastId);
         }
     }, [connected]);
+
+    useEffect(() => {
+        // Проверка на изменение статуса и вывод success toast
+        if (orderData.status === "completed" && !toast.isActive(toastId)) {
+            toast.success("Ваша машина готова!", {
+                toastId,
+                position: "top-center",
+                autoClose: 5000, // Закрывается через 5 секунд
+                hideProgressBar: false,
+                closeOnClick: true,
+                draggable: true,
+                className: "bg-green-100 text-green-600 text-xs text-center rounded-full px-4 py-1",
+            });
+        }
+    }, [orderData.status, toast, toastId]);
 
     // Обновление strokeWidth для адаптивного дизайна
     useEffect(() => {
@@ -376,6 +401,15 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
             default: return 'bg-gray-100 text-gray-700';
         }
     };
+
+    const [activeStatus, setActiveStatus] = useState(orderData?.status | null);
+
+    useEffect(() => {
+        // Обновляем activeStatus только если orderData.status отличается от текущего activeStatus
+        if (orderData.status !== activeStatus) {
+            setActiveStatus(orderData.status);
+        }
+    }, [orderData.status, activeStatus]);
 
     // Если загрузка или ошибка, показываем соответствующий экран
     if (loading) {
@@ -442,13 +476,13 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                 <div className="relative flex justify-center my-8">
                     <div className="absolute w-70 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 z-10 sm:mt-[-20px]">
                         <CircularProgressbar
-                            value={progress}
+                            value={orderData.status != "pending" ? progress : 0}
                             strokeWidth={strokeWidth}
                             styles={{
                                 path: {
                                     stroke: '#B2D0EB',
                                     strokeLinecap: 'round',
-                                    transform: 'rotate(-180deg)',
+                                    transform: 'rotate(-140deg)',
                                     transformOrigin: 'center center',
                                     background: 'linear-gradient(180deg, #B1CFEC 0%, #CADFE8 52.69%, #E3E2E4 90.33%)',
                                     boxShadow: '0px 4px 22.8px 0px #0B52C71A inset',
@@ -469,11 +503,11 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                         <div className="w-40 h-40 rounded-full flex items-center justify-center">
                             <div className="w-36 h-36 rounded-full bg-white flex flex-col items-center justify-center">
                                 <img src='/images/clock.svg' alt='clock' style={{ zIndex: "20", marginBottom: '10px' }} />
-                                <img style={{ position: 'absolute', zIndex: '10' }} src='/images/clock_mask.png' alt='background' />
+                                <img style={{ position: 'absolute', zIndex: '10', marginTop: '85px' }} src='/images/clock_mask.png' alt='background' />
 
-                                <span className="text-5xl font-bold text-white-700" style={{ zIndex: "20" }}>{progress}%</span>
+                                <span className="text-5xl font-bold text-white-700" style={{ zIndex: "20" }}>{orderData.status != "pending" ? progress : 0}%</span>
 
-                                <span className="text-sm text-white-500" style={{ zIndex: "20" }}>Осталось: {remainingTime} мин</span>
+                                <span className="text-sm text-white-500" style={{ zIndex: "20" }}>Осталось: {orderData.status != "pending" ? remainingTime : 0} мин</span>
                             </div>
                         </div>
                     </div>
@@ -485,6 +519,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                         src="/images/car.png"
                         alt="Car"
                         className="w-64"
+                        style={{ objectFit: 'contain' }}
                     />
                 </div>
 
@@ -492,8 +527,9 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                 <div className='bg-gray-50 rounded-2xl p-7 mt-4'>
                     <div className="flex justify-between">
                         <div className='flex flex-col'>
-                            <p className="text-gray-400 text-sm" style={{ color: "#00000040" }}>Данные заказа</p>
-                            <h3 className="font-semibold text-xl mt-2" style={{ color: "#1E1E1E" }}>{getPackageName()}</h3>
+                            <p className={styles.car_detail_text}>Данные заказа</p>
+                            <p className={` ${styles.car_text}`}>{orderData.car_brand} {orderData.car_model}</p>
+                            <p className={styles.car_text} style={{ color: "#1E1E1E" }}>{orderData.car_license_plate}</p>
                         </div>
                         <div className='right_content'>
                             <a href={`tel:${orderData.client_phone}`} className="bg-black text-white rounded-full px-4 py-2 font-medium">
@@ -501,38 +537,53 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                             </a>
                             {/* Time display */}
                             <div className="flex justify-center mt-3">
-                                <span className="text-blue-500 text-3xl font-bold">{formatTime(remainingTime)}</span>
+                                <span className="text-blue-500 text-3xl font-bold">{formatTime(orderData.status != "pending" ? remainingTime : 0)}</span>
                             </div>
                         </div>
                     </div>
                     {/* Bottom navigation */}
-                    <div className="flex justify-between mt-4">
+                    <div className="flex justify-between mt-4 bg-gray-200 rounded-full">
+                        {/* Clock (если null) */}
                         <div className="w-1/3 flex justify-center">
-                            <div className="bg-blue-500 rounded-full p-2 w-24 h-12 flex items-center justify-center">
-                                <img src='/images/bottom_navigation_icons/clock.svg' alt='clock' />
+                            <div className={`rounded-full p-2 w-24 h-12 flex items-center justify-center
+                    ${activeStatus === "pending" ? "bg-blue-500" : "bg-gray-200"}`}>
+                                <img
+                                    src={activeStatus === "pending" ? '/images/bottom_navigation_icons/clock.svg' : '/images/bottom_navigation_icons/clock_gray.svg'}
+                                    alt='clock'
+                                />
                             </div>
                         </div>
+
+                        {/* In Progress */}
                         <div className="w-1/3 flex justify-center">
-                            <div className="rounded-full p-2 w-12 h-12 flex items-center justify-center">
-                                <div className="flex">
-                                    <img src='/images/bottom_navigation_icons/buble.svg' alt='buble' />
-                                </div>
+                            <div className={`rounded-full p-2 w-12 h-12 flex items-center justify-center
+                    ${activeStatus === "in_progress" ? "bg-blue-500 w-28" : "bg-gray-200"}`}>
+                                <img
+                                    src='/images/bottom_navigation_icons/buble.svg'
+                                    alt='buble'
+                                    className={`${activeStatus === "in_progress" ? "filter brightness-0 invert" : ""}`}
+                                />
                             </div>
                         </div>
+
+                        {/* Completed */}
                         <div className="w-1/3 flex justify-center">
-                            <div className="rounded-full p-2 w-12 h-12 flex items-center justify-center">
-                                <div className="flex">
-                                    <img src='/images/bottom_navigation_icons/verified.svg' alt='verified' />
-                                </div>
+                            <div className={`rounded-full p-2 w-12 h-12 flex items-center justify-center
+                    ${activeStatus === "completed" ? "bg-blue-500 w-28" : "bg-gray-200"}`}>
+                                <img
+                                    src='/images/bottom_navigation_icons/verified.svg'
+                                    alt='verified'
+                                    className={`${activeStatus === "completed" ? "filter brightness-0 invert" : ""}`}
+                                />
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Status indicator */}
-                <div className={`text-center mt-3 text-xs font-medium px-3 py-1 rounded-full mx-auto w-fit ${getStatusClasses(orderData.status)}`}>
+                {/* <div className={`text-center mt-3 text-xs font-medium px-3 py-1 rounded-full mx-auto w-fit ${getStatusClasses(orderData.status)}`}>
                     {getStatusText(orderData.status)}
-                </div>
+                </div> */}
             </div>
         </div>
     );

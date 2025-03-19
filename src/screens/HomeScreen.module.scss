@@ -25,7 +25,7 @@
     position: absolute;
     width: 250px;
     z-index: 0;
-    margin-top: 90px;
+    // margin-top: 150px;
 }
 
 .car {
@@ -37,4 +37,22 @@
 .bottom_nav {
     background: linear-gradient(293.25deg, #DFE7F1 34.86%, #F3F2F7 67.93%);
     border-radius: 48px;
+}
+
+.car_text {
+    color: #1E1E1E;
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 20px;
+    letter-spacing: 0px;
+    vertical-align: middle;
+}
+
+.car_detail_text {
+    color: #00000040;
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 30px;
+    letter-spacing: 0px;
+    vertical-align: middle;
 }
