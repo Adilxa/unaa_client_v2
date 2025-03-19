@@ -414,8 +414,8 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
     // Если загрузка или ошибка, показываем соответствующий экран
     if (loading) {
         return (
-            <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
-                <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
+            <div className="flex justify-center items-center bg-[#E8E8E8] w-full min-h-screen">
+                <div className="w-full max-w-sm bg-white relative p-6 text-center">
                     <div className="my-8">
                         <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                         <p className="text-gray-600">Загрузка данных заказа...</p>
@@ -432,8 +432,8 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
 
     if (error) {
         return (
-            <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
-                <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
+            <div className="flex justify-center items-center bg-[#E8E8E8] w-full min-h-screen">
+                <div className="w-full max-w-sm bg-white relative p-6 text-center">
                     <div className="my-8">
                         <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
                             <span className="text-red-500 text-2xl">!</span>
@@ -453,8 +453,8 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
     }
 
     return (
-        <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen px-4 sm:px-6 md:px-8">
-            <div className="w-full max-w-sm bg-[#E8E8E8] rounded-3xl relative p-4 pb-6">
+        <div className="flex justify-center items-center bg-[#E8E8E8] w-full min-h-[100dvh] px-4 sm:px-6 md:px-8">
+            <div className="w-full max-w-sm bg-[#E8E8E8] relative p-4 pb-6">
                 {/* Header with logo */}
                 <div className="flex justify-center my-4">
                     <div className="flex items-center">
