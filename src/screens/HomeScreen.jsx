@@ -248,6 +248,37 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
         }
     };
 
+    const toastId = "reconnect-toast";
+
+    useEffect(() => {
+        if (!connected && !toast.isActive(toastId)) {
+            toast.warn("Переподключение...", {
+                toastId,
+                position: "top-center",
+                autoClose: false,
+                hideProgressBar: true,
+                closeOnClick: false,
+                draggable: false,
+                className: "bg-red-100 text-red-600 text-xs text-center rounded-full px-4 py-1",
+            });
+        } else if (connected) {
+            toast.dismiss(toastId);
+        }
+    }, [connected]);
+
+    const [strokeWidth, setStrokeWidth] = useState(10);
+
+    useEffect(() => {
+        const updateStrokeWidth = () => {
+            setStrokeWidth(window.innerWidth >= 640 ? 10 : 7);
+        };
+
+        updateStrokeWidth();
+        window.addEventListener("resize", updateStrokeWidth);
+
+        return () => window.removeEventListener("resize", updateStrokeWidth);
+    }, []);
+
     // Если загрузка или ошибка, показываем соответствующий экран
 
     // РАСКОМЕНТИТЬ
@@ -292,26 +323,10 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
         );
     }
 
-    const toastId = "reconnect-toast"; 
-
-    useEffect(() => {
-        if (!connected && !toast.isActive(toastId)) {
-            toast.warn("Переподключение...", {
-                toastId,
-                position: "top-center",
-                autoClose: false,
-                hideProgressBar: true,
-                closeOnClick: false,
-                draggable: false,
-                className: "bg-red-100 text-red-600 text-xs text-center rounded-full px-4 py-1",
-            });
-        } else if (connected) {
-            toast.dismiss(toastId); 
-        }
-    }, [connected]);
+  
 
     return (
-        <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
+        <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen px-4 sm:px-6 md:px-8">
             <div className="w-full max-w-sm bg-[#E8E8E8] rounded-3xl relative p-4 pb-6">
                 {/* Header with logo */}
                 <div className="flex justify-center my-4">
@@ -337,11 +352,10 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
 
                 {/* Progress circle */}
                 <div className="relative flex justify-center my-8">
-                    <div className="absolute w-80 h-80 z-10">
+                    <div className="absolute w-70 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 z-10 sm:mt-[-20px]">
                         <CircularProgressbar
-                            value={progress}
-                            strokeWidth={10}
-                            className='mt-[-20px]'
+                            value={50}
+                            strokeWidth={strokeWidth}
                             styles={{
                                 path: {
                                     stroke: '#B2D0EB',
@@ -352,7 +366,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                                     boxShadow: '0px 4px 22.8px 0px #0B52C71A inset',
                                 },
                                 trail: {
-                                    stroke: 'transparent', 
+                                    stroke: 'transparent',
                                 },
                                 text: {
                                     fill: '#4db8ff',
@@ -391,7 +405,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                     <div className="flex justify-between">
                         <div className='flex flex-col'>
                             <p className="text-gray-400 text-sm" style={{ color: "#00000040" }}>Данные заказа</p>
-                            <h3 className="font-semibold text-xl mt-1" style={{ color: "#1E1E1E" }}>{getPackageName()}</h3>
+                            <h3 className="font-semibold text-xl mt-2" style={{ color: "#1E1E1E" }}>{getPackageName()}</h3>
                             {/* <p className="text-gray-600">ID: {orderData.id}</p> */}
                         </div>
                         <div className='right_content'>
@@ -399,7 +413,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                                 Позвонить
                             </a>
                             {/* Time display */}
-                            <div className="flex justify-center mt-2">
+                            <div className="flex justify-center mt-3">
                                 <span className="text-blue-500 text-3xl font-bold">{formatTime(remainingTime)}</span>
                             </div>
                         </div>
@@ -412,15 +426,15 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                             </div>
                         </div>
                         <div className="w-1/3 flex justify-center">
-                            <div className="bg-gray-100 rounded-full p-2 w-12 h-12 flex items-center justify-center">
+                            <div className="rounded-full p-2 w-12 h-12 flex items-center justify-center">
                                 <div className="flex">
                                     <img src='/images/bottom_navigation_icons/buble.svg' alt='buble' />
                                 </div>
                             </div>
                         </div>
                         <div className="w-1/3 flex justify-center">
-                            <div className="bg-gray-100 rounded-full p-2 w-12 h-12 flex items-center justify-center">
-                                <div className="w-6 h-6 rounded-full flex items-center justify-center">
+                            <div className="rounded-full p-2 w-12 h-12 flex items-center justify-center">
+                                <div className="flex">
                                     <img src='/images/bottom_navigation_icons/verified.svg' alt='verified' />
                                 </div>
                             </div>
