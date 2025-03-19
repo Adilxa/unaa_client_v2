@@ -11,3 +11,11 @@ export default function TrackPage() {
 
     return <HomeScreen websocketId={id} />;
 }
+
+export const getServerSideProps = async ({ params }) => {
+    return {
+        props: {
+            id: params?.id || null,
+        },
+    };
+};
