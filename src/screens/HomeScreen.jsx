@@ -41,171 +41,171 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
     // Функция для создания WebSocket соединения
 
     // РАСКОМЕНТИТЬ
-    // const createWebSocketConnection = useCallback((wsId) => {
-    //     if (!wsId) {
-    //         console.error('ID заказа не найден');
-    //         setError('Не удалось найти ID заказа. Пожалуйста, отсканируйте QR-код снова.');
-    //         setLoading(false);
-    //         return null;
-    //     }
+    const createWebSocketConnection = useCallback((wsId) => {
+        if (!wsId) {
+            console.error('ID заказа не найден');
+            setError('Не удалось найти ID заказа. Пожалуйста, отсканируйте QR-код снова.');
+            setLoading(false);
+            return null;
+        }
 
-    //     console.log('WebSocket ID найден:', wsId);
+        console.log('WebSocket ID найден:', wsId);
 
-    //     // Используем фиксированный URL для WebSocket сервера
-    //     // Поскольку мы теперь работаем локально на порту 3001
-    //     const wsUrl = `ws://84.54.12.243/ws/order/${wsId}/`;
-    //     console.log('Подключение к WebSocket:', wsUrl);
+        // Используем фиксированный URL для WebSocket сервера
+        // Поскольку мы теперь работаем локально на порту 3001
+        const wsUrl = `wss://unaa.com.kg/ws/order/${wsId}/`;
+        console.log('Подключение к WebSocket:', wsUrl);
 
-    //     let socket;
-    //     try {
-    //         socket = new WebSocket(wsUrl);
-    //         console.log('WebSocket создан');
-    //     } catch (err) {
-    //         console.error('Ошибка создания WebSocket:', err);
-    //         setError('Не удалось подключиться к серверу. Пожалуйста, проверьте соединение и попробуйте снова.');
-    //         setLoading(false);
-    //         return null;
-    //     }
+        let socket;
+        try {
+            socket = new WebSocket(wsUrl);
+            console.log('WebSocket создан');
+        } catch (err) {
+            console.error('Ошибка создания WebSocket:', err);
+            setError('Не удалось подключиться к серверу. Пожалуйста, проверьте соединение и попробуйте снова.');
+            setLoading(false);
+            return null;
+        }
 
-    //     // Устанавливаем таймаут на подключение
-    //     const connectionTimeout = setTimeout(() => {
-    //         if (!connected) {
-    //             console.error('Превышено время ожидания WebSocket подключения');
-    //             socket.close();
+        // Устанавливаем таймаут на подключение
+        const connectionTimeout = setTimeout(() => {
+            if (!connected) {
+                console.error('Превышено время ожидания WebSocket подключения');
+                socket.close();
 
-    //             // Пробуем переподключиться, если не превысили максимальное количество попыток
-    //             if (reconnectAttempt < maxReconnectAttempts) {
-    //                 console.log(`Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
-    //                 setReconnectAttempt(prev => prev + 1);
-    //                 // Не показываем ошибку при переподключении
-    //             } else {
-    //                 setError('Превышено время ожидания подключения. Пожалуйста, попробуйте позже.');
-    //                 setLoading(false);
-    //             }
-    //         }
-    //     }, 10000); // 10 секунд таймаут
+                // Пробуем переподключиться, если не превысили максимальное количество попыток
+                if (reconnectAttempt < maxReconnectAttempts) {
+                    console.log(`Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
+                    setReconnectAttempt(prev => prev + 1);
+                    // Не показываем ошибку при переподключении
+                } else {
+                    setError('Превышено время ожидания подключения. Пожалуйста, попробуйте позже.');
+                    setLoading(false);
+                }
+            }
+        }, 10000); // 10 секунд таймаут
 
-    //     // Успешное подключение
-    //     socket.onopen = () => {
-    //         console.log('WebSocket соединение установлено');
-    //         clearTimeout(connectionTimeout);
-    //         setConnected(true);
-    //         setLoading(false);
-    //         setReconnectAttempt(0); // Сбрасываем счетчик попыток
-    //     };
+        // Успешное подключение
+        socket.onopen = () => {
+            console.log('WebSocket соединение установлено');
+            clearTimeout(connectionTimeout);
+            setConnected(true);
+            setLoading(false);
+            setReconnectAttempt(0); // Сбрасываем счетчик попыток
+        };
 
-    //     // Получение сообщений
-    //     socket.onmessage = (event) => {
-    //         try {
-    //             const data = JSON.parse(event.data);
-    //             console.log('Получены данные:', data);
-    //             setOrderData(data);
+        // Получение сообщений
+        socket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('Получены данные:', data);
+                setOrderData(data);
 
-    //             // Расчет прогресса на основе статуса
-    //             if (data.status === "in_progress") {
-    //                 const createdTime = new Date(data.created_at);
-    //                 const now = new Date();
-    //                 const elapsedMinutes = Math.floor((now - createdTime) / (1000 * 60));
+                // Расчет прогресса на основе статуса
+                if (data.status === "in_progress") {
+                    const createdTime = new Date(data.created_at);
+                    const now = new Date();
+                    const elapsedMinutes = Math.floor((now - createdTime) / (1000 * 60));
 
-    //                 // Предполагаем, что полный сервис занимает 60 минут
-    //                 const totalServiceTime = 60;
-    //                 const newProgress = Math.min(Math.floor((elapsedMinutes / totalServiceTime) * 100), 99);
-    //                 setProgress(newProgress);
+                    // Предполагаем, что полный сервис занимает 60 минут
+                    const totalServiceTime = 60;
+                    const newProgress = Math.min(Math.floor((elapsedMinutes / totalServiceTime) * 100), 99);
+                    setProgress(newProgress);
 
-    //                 // Оставшееся время
-    //                 const remainingMins = Math.max(totalServiceTime - elapsedMinutes, 0);
-    //                 setRemainingTime(remainingMins);
-    //             } else if (data.status === "completed") {
-    //                 setProgress(100);
-    //                 setRemainingTime(0);
-    //             } else if (data.status === "pending") {
-    //                 // Для ожидающих заказов показываем начальный прогресс
-    //                 setProgress(5);
-    //                 setRemainingTime(60);
-    //             }
-    //         } catch (error) {
-    //             console.error('Ошибка обработки данных:', error);
-    //         }
-    //     };
+                    // Оставшееся время
+                    const remainingMins = Math.max(totalServiceTime - elapsedMinutes, 0);
+                    setRemainingTime(remainingMins);
+                } else if (data.status === "completed") {
+                    setProgress(100);
+                    setRemainingTime(0);
+                } else if (data.status === "pending") {
+                    // Для ожидающих заказов показываем начальный прогресс
+                    setProgress(5);
+                    setRemainingTime(60);
+                }
+            } catch (error) {
+                console.error('Ошибка обработки данных:', error);
+            }
+        };
 
-    //     // Обработка ошибок
-    //     socket.onerror = (error) => {
-    //         console.error('Ошибка WebSocket:', error);
-    //         setConnected(false);
+        // Обработка ошибок
+        socket.onerror = (error) => {
+            console.error('Ошибка WebSocket:', error);
+            setConnected(false);
 
-    //         // При ошибке WebSocket попытаемся переподключиться
-    //         if (reconnectAttempt < maxReconnectAttempts) {
-    //             console.log(`Ошибка соединения. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
-    //             setReconnectAttempt(prev => prev + 1);
-    //         } else {
-    //             setError('Произошла ошибка при подключении к серверу. Пожалуйста, попробуйте позже.');
-    //             setLoading(false);
-    //         }
-    //     };
+            // При ошибке WebSocket попытаемся переподключиться
+            if (reconnectAttempt < maxReconnectAttempts) {
+                console.log(`Ошибка соединения. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
+                setReconnectAttempt(prev => prev + 1);
+            } else {
+                setError('Произошла ошибка при подключении к серверу. Пожалуйста, попробуйте позже.');
+                setLoading(false);
+            }
+        };
 
-    //     // Обработка закрытия соединения
-    //     socket.onclose = (event) => {
-    //         console.log(`WebSocket соединение закрыто. Код: ${event.code}, Причина: ${event.reason}`);
-    //         setConnected(false);
+        // Обработка закрытия соединения
+        socket.onclose = (event) => {
+            console.log(`WebSocket соединение закрыто. Код: ${event.code}, Причина: ${event.reason}`);
+            setConnected(false);
 
-    //         // При закрытии WebSocket пытаемся переподключиться
-    //         if (reconnectAttempt < maxReconnectAttempts) {
-    //             console.log(`Соединение закрыто. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
-    //             setReconnectAttempt(prev => prev + 1);
-    //         } else if (loading) {
-    //             setError('Соединение закрыто. Не удалось получить данные заказа.');
-    //             setLoading(false);
-    //         }
-    //     };
+            // При закрытии WebSocket пытаемся переподключиться
+            if (reconnectAttempt < maxReconnectAttempts) {
+                console.log(`Соединение закрыто. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
+                setReconnectAttempt(prev => prev + 1);
+            } else if (loading) {
+                setError('Соединение закрыто. Не удалось получить данные заказа.');
+                setLoading(false);
+            }
+        };
 
-    //     return { socket, connectionTimeout };
-    // }, [connected, reconnectAttempt, loading]);
+        return { socket, connectionTimeout };
+    }, [connected, reconnectAttempt, loading]);
 
     // РАСКОМЕНТИТЬ
 
-    // useEffect(() => {
-    //     // Определяем ID заказа
-    //     let websocketId = propWebsocketId; // Сначала используем prop, если передан
+    useEffect(() => {
+        // Определяем ID заказа
+        let websocketId = propWebsocketId; // Сначала используем prop, если передан
 
-    //     if (!websocketId) {
-    //         // Проверяем hash в URL
-    //         if (window.location.hash && window.location.hash.length > 1) {
-    //             websocketId = window.location.hash.substring(1);
-    //             console.log("ID получен из hash:", websocketId);
-    //         }
+        if (!websocketId) {
+            // Проверяем hash в URL
+            if (window.location.hash && window.location.hash.length > 1) {
+                websocketId = window.location.hash.substring(1);
+                console.log("ID получен из hash:", websocketId);
+            }
 
-    //         // Проверяем query параметры
-    //         if (!websocketId) {
-    //             const urlParams = new URLSearchParams(window.location.search);
-    //             websocketId = urlParams.get('id');
-    //             console.log("ID получен из query params:", websocketId);
-    //         }
+            // Проверяем query параметры
+            if (!websocketId) {
+                const urlParams = new URLSearchParams(window.location.search);
+                websocketId = urlParams.get('id');
+                console.log("ID получен из query params:", websocketId);
+            }
 
-    //         // Проверяем, не находимся ли мы на пути /track/ID
-    //         if (!websocketId && window.location.pathname.startsWith('/track/')) {
-    //             const pathParts = window.location.pathname.split('/');
-    //             if (pathParts.length >= 3) {
-    //                 websocketId = pathParts[2];
-    //                 console.log("ID получен из path:", websocketId);
-    //             }
-    //         }
-    //     } else {
-    //         console.log("ID получен из props:", websocketId);
-    //     }
+            // Проверяем, не находимся ли мы на пути /track/ID
+            if (!websocketId && window.location.pathname.startsWith('/track/')) {
+                const pathParts = window.location.pathname.split('/');
+                if (pathParts.length >= 3) {
+                    websocketId = pathParts[2];
+                    console.log("ID получен из path:", websocketId);
+                }
+            }
+        } else {
+            console.log("ID получен из props:", websocketId);
+        }
 
-    //     let socketData = null;
+        let socketData = null;
 
-    //     // Создаем новое соединение
-    //     socketData = createWebSocketConnection(websocketId);
+        // Создаем новое соединение
+        socketData = createWebSocketConnection(websocketId);
 
-    //     // Функция очистки
-    //     return () => {
-    //         if (socketData) {
-    //             clearTimeout(socketData.connectionTimeout);
-    //             socketData.socket?.close();
-    //         }
-    //     };
-    // }, [propWebsocketId, createWebSocketConnection, reconnectAttempt]);
+        // Функция очистки
+        return () => {
+            if (socketData) {
+                clearTimeout(socketData.connectionTimeout);
+                socketData.socket?.close();
+            }
+        };
+    }, [propWebsocketId, createWebSocketConnection, reconnectAttempt]);
 
     // Форматирование номера телефона
     const formatPhone = (phone) => {
@@ -252,45 +252,45 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
 
     // РАСКОМЕНТИТЬ
 
-    // if (loading) {
-    //     return (
-    //         <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
-    //             <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
-    //                 <div className="my-8">
-    //                     <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-    //                     <p className="text-gray-600">Загрузка данных заказа...</p>
-    //                     {reconnectAttempt > 0 && (
-    //                         <p className="text-sm text-gray-500 mt-2">
-    //                             Попытка подключения: {reconnectAttempt} из {maxReconnectAttempts}
-    //                         </p>
-    //                     )}
-    //                 </div>
-    //             </div>
-    //         </div>
-    //     );
-    // }
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
+                <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
+                    <div className="my-8">
+                        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-gray-600">Загрузка данных заказа...</p>
+                        {reconnectAttempt > 0 && (
+                            <p className="text-sm text-gray-500 mt-2">
+                                Попытка подключения: {reconnectAttempt} из {maxReconnectAttempts}
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-    // if (error) {
-    //     return (
-    //         <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
-    //             <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
-    //                 <div className="my-8">
-    //                     <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-    //                         <span className="text-red-500 text-2xl">!</span>
-    //                     </div>
-    //                     <h3 className="text-xl font-bold mb-2">Ошибка</h3>
-    //                     <p className="text-gray-600 mb-4">{error}</p>
-    //                     <button
-    //                         onClick={() => window.location.reload()}
-    //                         className="px-4 py-2 bg-blue-500 text-white rounded-full"
-    //                     >
-    //                         Повторить
-    //                     </button>
-    //                 </div>
-    //             </div>
-    //         </div>
-    //     );
-    // }
+    if (error) {
+        return (
+            <div className="flex justify-center items-center bg-slate-900 w-full min-h-screen">
+                <div className="w-full max-w-sm bg-white rounded-3xl relative p-6 text-center">
+                    <div className="my-8">
+                        <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                            <span className="text-red-500 text-2xl">!</span>
+                        </div>
+                        <h3 className="text-xl font-bold mb-2">Ошибка</h3>
+                        <p className="text-gray-600 mb-4">{error}</p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-full"
+                        >
+                            Повторить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const toastId = "reconnect-toast"; 
 
