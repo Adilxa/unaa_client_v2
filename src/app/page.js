@@ -9,14 +9,8 @@ export default function Home() {
       <div className="bg-white text-slate-900 rounded-3xl p-6 max-w-md w-full">
         <div className="flex justify-center my-4">
           <div className="flex items-center">
-            <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center mr-2">
-              <div className="w-5 h-5 bg-white rounded-sm"></div>
-            </div>
             <div>
-              <span className="text-blue-500 font-bold text-xl">UNAA</span>
-              <span className="text-gray-400 text-sm block -mt-1">
-                DETAILING
-              </span>
+              <img src='/images/logo.svg' alt='logo' />
             </div>
           </div>
         </div>
