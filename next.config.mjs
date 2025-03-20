@@ -1,9 +1,9 @@
-
-
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  basePath: "/tracking",
+  // Allow the app to be hosted on tracking.unaa.com.kg
+  assetPrefix: "https://tracking.unaa.com.kg",
+  // Add basePath if your application is not hosted at the domain root
+  // basePath: '',
 };
 
 export default nextConfig;

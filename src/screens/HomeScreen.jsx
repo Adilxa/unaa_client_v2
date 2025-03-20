@@ -7,6 +7,8 @@ import "react-toastify/dist/ReactToastify.css";
 import { CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import styles from "./HomeScreen.module.scss"
+
+
 const HomeScreen = ({ websocketId: propWebsocketId }) => {
     // State для хранения данных WebSocket
     const [orderData, setOrderData] = useState({
