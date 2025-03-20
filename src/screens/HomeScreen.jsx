@@ -480,7 +480,11 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                 <div className="relative flex justify-center my-8">
                     <div className="absolute w-70 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 z-10 sm:mt-[-20px]">
                         <CircularProgressbar
-                            value={orderData.status != "pending" ? progress : 0}
+                            value={
+                                orderData.status === "pending" ? 0 : 
+                                orderData.status === "in_progress" ? progress : 
+                                orderData.status === "completed" ? 100 : 0
+                            }
                             strokeWidth={strokeWidth}
                             styles={{
                                 path: {
