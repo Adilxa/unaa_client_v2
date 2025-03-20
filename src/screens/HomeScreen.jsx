@@ -105,6 +105,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                 client_name: data.client_name || "Нет данных",
                 client_phone: data.client_phone || "",
                 employee_name: data.employee_name || "",
+                // Проверяем, является ли package_details массивом
                 package_details: Array.isArray(data.package_details) ? data.package_details : [],
                 total_price: data.total_price || "0.00",
                 status: data.status || "pending",
@@ -300,10 +301,11 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                 const remainingMins = Math.max(totalServiceTime - elapsedMinutes, 0); // Оставшееся время
 
                 // Прогресс в процентах (макс. 100%)
-                const newProgress = Math.max(100 - Math.floor((elapsedMinutes / totalServiceTime) * 100), 0);
+                const newProgress = Math.min(Math.ceil((elapsedMinutes / totalServiceTime) * 100), 100);
 
-                setProgress(newProgress); // Обновляем прогресс
-                setRemainingTime(remainingMins); // Обновляем оставшееся время
+                setProgress(newProgress);
+                setRemainingTime(remainingMins);
+                console.log(remainingTime)
             };
 
             updateTime(); // Вызываем сразу, чтобы не ждать 1 минуту
@@ -312,6 +314,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
             return () => clearInterval(intervalId);
         }
     }, [orderData, connected]);
+
 
 
 
