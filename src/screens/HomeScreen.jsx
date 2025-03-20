@@ -465,9 +465,13 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                 </div>
 
                 {/* Queue information */}
-                <div className="bg-gray-100 rounded-full px-6 py-2 mx-auto w-fit my-4">
-                    <span className="text-gray-600">Ваше авто на очереди: <span className="font-bold">{orderData.queue_position}</span></span>
-                </div>
+                {
+                    orderData.status != "completed" ? (
+                        <div className="bg-gray-100 rounded-full px-6 py-2 mx-auto w-fit my-4">
+                            <span className="text-gray-600">Ваше авто на очереди: <span className="font-bold">{orderData.queue_position}</span></span>
+                        </div>
+                    ) : ""
+                }
 
                 {/* Toast для уведомлений о переподключении */}
                 <ToastContainer />
@@ -502,12 +506,26 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                     <div className="w-48 h-48 rounded-full flex items-center justify-center">
                         <div className="w-40 h-40 rounded-full flex items-center justify-center">
                             <div className="w-36 h-36 rounded-full bg-white flex flex-col items-center justify-center">
-                                <img src='/images/clock.svg' alt='clock' style={{ zIndex: "20", marginBottom: '10px' }} />
+                                {orderData.status != "completed" ? (<img src='/images/clock.svg' alt='clock' style={{ zIndex: "20", marginBottom: '10px' }} />) : ""}
                                 <img style={{ position: 'absolute', zIndex: '10', marginTop: '85px' }} src='/images/clock_mask.png' alt='background' />
 
-                                <span className="text-5xl font-bold text-white-700" style={{ zIndex: "20" }}>{orderData.status != "pending" ? progress : 0}%</span>
+                                {
+                                    orderData.status != "completed" ? (
+                                        <>
+                                            <span className="text-5xl font-bold text-white-700" style={{ zIndex: "20" }}>{orderData.status != "pending" ? progress : 0}%</span>
 
-                                <span className="text-sm text-white-500" style={{ zIndex: "20" }}>Осталось: {orderData.status != "pending" ? remainingTime : 0} мин</span>
+                                            <span className="text-sm text-white-500" style={{ zIndex: "20" }}>Осталось: {orderData.status != "pending" ? remainingTime : 0} мин</span>
+                                        </>
+                                    ) : ""
+                                }
+                                {
+                                    orderData.status == "completed" ? (
+                                        <>
+                                            <img style={{ zIndex: "50" }} src='/images/success.svg' alt='successIcon' />
+                                            <p className={styles.success_text}>Мойка завершена!</p>
+                                        </>
+                                    ) : ""
+                                }
                             </div>
                         </div>
                     </div>
