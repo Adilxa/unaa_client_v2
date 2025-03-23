@@ -7,6 +7,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import styles from "./HomeScreen.module.scss"
+
 const HomeScreen = ({ websocketId: propWebsocketId }) => {
     // State для хранения данных WebSocket
     const [orderData, setOrderData] = useState({
@@ -116,7 +117,8 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                 total_duration: data.total_duration,
                 car_brand: data.car_brand,
                 car_model: data.car_model,
-                car_license_plate: data.car_license_plate
+                car_license_plate: data.car_license_plate,
+                branch_phone: data.branch_phone
             };
 
             // Применяем обновления только если данные изменились
@@ -150,7 +152,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
             } else if (data.status === "pending") {
                 // Для ожидающих заказов показываем начальный прогресс (например, 100%)
                 setProgress(100);
-                setRemainingTime(90); // Время до начала работы, если нужно
+                setRemainingTime(data.total_duration || 90); // Время до начала работы, если нужно
             }
 
         } catch (error) {
@@ -159,7 +161,6 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
             processingDataRef.current = false;
         }
     }, []);
-
 
     // Функция для создания WebSocket соединения
     const createWebSocketConnection = useCallback(() => {
@@ -248,7 +249,40 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
             console.log(`WebSocket соединение закрыто. Код: ${event.code}, Причина: ${event.reason}`);
             setConnected(false);
 
-            // При закрытии WebSocket пытаемся переподключиться
+            // Проверяем код закрытия соединения
+            if (event.code === 1000) {
+                // Код 1000 означает нормальное закрытие - ссылка недействительна
+                console.log('Получен код 1000: ссылка недействительна');
+                
+                // Очищаем все таймеры
+                if (reconnectTimerRef.current) {
+                    clearTimeout(reconnectTimerRef.current);
+                }
+                if (connectionTimeoutRef.current) {
+                    clearTimeout(connectionTimeoutRef.current);
+                }
+                
+                // Устанавливаем флаг, что больше не нужно пытаться подключиться
+                setReconnectAttempt(maxReconnectAttempts + 1); // Значение больше максимального
+                
+                // Показываем уведомление пользователю
+                toast.error('Ссылка недействительна. Подключение прекращено.', {
+                    position: "top-center",
+                    autoClose: 5000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                });
+                
+                // Прекращаем состояние загрузки и показываем ошибку
+                setLoading(false);
+                setError('Ссылка недействительна. Пожалуйста, отсканируйте QR-код снова.');
+                
+                return; // Выходим из функции, чтобы не запускать попытки переподключения
+            }
+
+            // При закрытии WebSocket пытаемся переподключиться (только если это не код 1000)
             if (reconnectAttempt < maxReconnectAttempts) {
                 // Добавляем задержку перед переподключением
                 console.log(`Соединение закрыто. Попытка переподключения ${reconnectAttempt + 1} из ${maxReconnectAttempts}`);
@@ -313,10 +347,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
 
             return () => clearInterval(intervalId);
         }
-    }, [orderData, connected]);
-
-
-
+    }, [orderData, connected, remainingTime]);
 
     // Уведомление о переподключении
     useEffect(() => {
@@ -333,7 +364,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
         } else if (connected) {
             toast.dismiss(toastId);
         }
-    }, [connected]);
+    }, [connected, toastId]);
 
     useEffect(() => {
         // Проверка на изменение статуса и вывод success toast
@@ -348,7 +379,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                 className: "bg-green-100 text-green-600 text-xs text-center rounded-full px-4 py-1",
             });
         }
-    }, [orderData.status, toast, toastId]);
+    }, [orderData.status, toastId]);
 
     // Обновление strokeWidth для адаптивного дизайна
     useEffect(() => {
@@ -405,7 +436,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
         }
     };
 
-    const [activeStatus, setActiveStatus] = useState(orderData?.status | null);
+    const [activeStatus, setActiveStatus] = useState(orderData?.status || null);
 
     useEffect(() => {
         // Обновляем activeStatus только если orderData.status отличается от текущего activeStatus
@@ -469,7 +500,7 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
 
                 {/* Queue information */}
                 {
-                    orderData.status != "completed" ? (
+                    orderData.status !== "completed" && orderData.status !== "in_progress" ? (
                         <div className="bg-gray-100 rounded-full px-6 py-2 mx-auto w-fit my-4">
                             <span className="text-gray-600">Ваше авто на очереди: <span className="font-bold">{orderData.queue_position}</span></span>
                         </div>
@@ -513,20 +544,20 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                     <div className="w-48 h-48 rounded-full flex items-center justify-center">
                         <div className="w-40 h-40 rounded-full flex items-center justify-center">
                             <div className="w-36 h-36 rounded-full bg-white flex flex-col items-center justify-center">
-                                {orderData.status != "completed" ? (<img src='/images/clock.svg' alt='clock' style={{ zIndex: "20", marginBottom: '10px' }} />) : ""}
+                                {orderData.status !== "completed" ? (<img src='/images/clock.svg' alt='clock' style={{ zIndex: "20", marginBottom: '10px' }} />) : ""}
                                 <img style={{ position: 'absolute', zIndex: '10', marginTop: '85px' }} src='/images/clock_mask.png' alt='background' />
 
                                 {
-                                    orderData.status != "completed" ? (
+                                    orderData.status !== "completed" ? (
                                         <>
-                                            <span className="text-5xl font-bold text-white-700" style={{ zIndex: "20" }}>{orderData.status != "pending" ? progress : 0}%</span>
+                                            <span className="text-5xl font-bold text-white-700" style={{ zIndex: "20" }}>{orderData.status !== "pending" ? progress : 0}%</span>
 
-                                            <span className="text-sm text-white-500" style={{ zIndex: "20" }}>Осталось: {orderData.status != "pending" ? remainingTime : 0} мин</span>
+                                            <span className="text-sm text-white-500" style={{ zIndex: "20" }}>Осталось: {orderData.status !== "pending" ? remainingTime : 0} мин</span>
                                         </>
                                     ) : ""
                                 }
                                 {
-                                    orderData.status == "completed" ? (
+                                    orderData.status === "completed" ? (
                                         <>
                                             <img style={{ zIndex: "50" }} src='/images/success.svg' alt='successIcon' />
                                             <p className={styles.success_text}>Мойка завершена!</p>
@@ -557,12 +588,12 @@ const HomeScreen = ({ websocketId: propWebsocketId }) => {
                             <p className={styles.car_text} style={{ color: "#1E1E1E" }}>{orderData.car_license_plate}</p>
                         </div>
                         <div className='right_content'>
-                            <a href={`tel:${orderData.client_phone}`} className="bg-black text-white rounded-full px-4 py-2 font-medium">
+                            <a href={`tel:${orderData.branch_phone}`} className="bg-black text-white rounded-full px-4 py-2 font-medium">
                                 Позвонить
                             </a>
                             {/* Time display */}
                             <div className="flex justify-center mt-3">
-                                <span className="text-blue-500 text-3xl font-bold">{formatTime(orderData.status != "pending" ? remainingTime : 0)}</span>
+                                <span className="text-blue-500 text-3xl font-bold">{formatTime(orderData.status !== "pending" ? remainingTime : 0)}</span>
                             </div>
                         </div>
                     </div>
