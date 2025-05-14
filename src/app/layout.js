@@ -13,7 +13,8 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "UNAA TRACKING",
-  description: "unaa traking",
+  description: "Unaa traking",
+  manifest: "/manifest.json",
   icons: [{ rel: "icon", url: "./icon.svg" }],
 };
 
